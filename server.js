@@ -17,9 +17,9 @@ http.createServer(async (req, res) => {
   try {
     let body = '';
     for await (const chunk of req) { body += chunk; if (body.length > 8192) throw new Error('Request too large.'); }
-    const { url, mode = 'source' } = JSON.parse(body);
+    const { url, mode = 'source', acceptCookies = false } = JSON.parse(body);
     if (typeof url !== 'string') throw new Error('Enter a website URL.');
-    res.end(JSON.stringify(await scan(url, mode)));
+    res.end(JSON.stringify(await scan(url, mode, { acceptCookies })));
   } catch (error) {
     res.writeHead(400); res.end(JSON.stringify({ error: error.message }));
   } finally { busy = false; }

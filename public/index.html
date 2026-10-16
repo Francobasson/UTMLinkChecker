@@ -2,15 +2,22 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pixel Checker</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0d1423;color:#eaf0ff;font:16px system-ui,sans-serif}main{max-width:960px;margin:70px auto;padding:24px}small{color:#97b7ff;letter-spacing:.12em}h1{font-size:48px;margin-bottom:12px}p{color:#adbad0;line-height:1.6}form{display:flex;flex-wrap:wrap;gap:12px;margin:32px 0}input{flex:1;min-width:220px}input,select{padding:16px;border:1px solid #354563;border-radius:10px;background:#172238;color:white;font:inherit}button{background:#a9f3cc;color:#102b23;border:0;border-radius:10px;padding:16px 24px;font:600 16px system-ui;cursor:pointer}button:disabled{opacity:.6}#results{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}article{background:#172238;border:1px solid #2b3c59;border-radius:12px;padding:22px}h2{font-size:19px;margin:0 0 14px}.observed{color:#a9f3cc}.detected{color:#ffdc96}.missing{color:#a2aec4}code{display:block;overflow-wrap:anywhere;font-size:12px;margin-top:12px;color:#adbad0}#message{overflow-wrap:anywhere}@media(max-width:600px){main{margin:25px auto}h1{font-size:36px}form{flex-direction:column}}
-.checks{list-style:none;padding:0;margin:20px 0 0}.checks li{border-top:1px solid #354563;padding:12px 0}.checks strong{display:block;font-size:14px}.checks p{font-size:13px;margin:6px 0}.badge{display:inline-block;font-size:12px;padding:3px 8px;border-radius:5px;background:#24344e;margin:6px 0}.passed{color:#a9f3cc}.needs_attention{color:#ffdc96}.not_tested{color:#adbad0}.ids{font-size:14px;overflow-wrap:anywhere}.events{font-size:14px;padding-left:18px}.events li{margin:8px 0}article{min-width:0}#results{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}details{margin-top:16px}summary{cursor:pointer;color:#adbad0;font-size:13px}</style></head><body><main><small>WEBSITE DIAGNOSTICS</small><h1>Know which pixels are present.</h1><p>Find tracking IDs, inspect event requests, and spot possible duplicate events before launching campaigns.</p>
-<form id="form"><input aria-label="Website URL" id="url" type="url" placeholder="https://example.com" required><select id="mode" aria-label="Check mode"><option value="browser">Browser visit · events &amp; IDs</option><option value="source">Page source · IDs only</option></select><button>Check pixels</button></form>
-<p id="message" role="status" aria-live="polite">Checks Meta, Google Analytics, Google Ads, Google Tag Manager, TikTok, LinkedIn, Pinterest, and Snapchat.</p><section id="results" aria-label="Pixel results"></section>
-<p>“Not detected” does not prove a pixel is absent. Browser checks wait five seconds and do not accept cookies. Tag Manager is a container, not a tracking pixel.</p></main>
+.checks{list-style:none;padding:0;margin:20px 0 0}.checks li{border-top:1px solid #354563;padding:12px 0}.checks strong{display:block;font-size:14px}.checks p{font-size:13px;margin:6px 0}.badge{display:inline-block;font-size:12px;padding:3px 8px;border-radius:5px;background:#24344e;margin:6px 0}.passed{color:#a9f3cc}.needs_attention{color:#ffdc96}.not_tested{color:#adbad0}.ids{font-size:14px;overflow-wrap:anywhere}.events{font-size:14px;padding-left:18px}.events li{margin:8px 0}article{min-width:0}#results{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}details{margin-top:16px}summary{cursor:pointer;color:#adbad0;font-size:13px}.consent-option{flex-basis:100%;display:flex;align-items:center;gap:10px;color:#adbad0;font-size:14px}.consent-option input{flex:none;min-width:0;width:18px;height:18px;accent-color:#a9f3cc}.consent-summary{padding:16px;background:#172238;border:1px solid #354563;border-radius:10px}input:disabled{opacity:.5}</style></head><body><main><small>WEBSITE DIAGNOSTICS</small><h1>Know which pixels are present.</h1><p>Find tracking IDs, inspect event requests, and spot possible duplicate events before launching campaigns.</p>
+<form id="form"><input aria-label="Website URL" id="url" type="url" placeholder="https://example.com" required><select id="mode" aria-label="Check mode"><option value="browser">Browser visit · events &amp; IDs</option><option value="source">Page source · IDs only</option></select><button>Check pixels</button><label class="consent-option"><input id="accept-cookies" type="checkbox"> Attempt to accept all cookies (browser scans only)</label></form>
+<p id="message" role="status" aria-live="polite">Checks Meta, Google Analytics, Google Ads, Google Tag Manager, TikTok, LinkedIn, Pinterest, and Snapchat.</p><p id="consent-summary" class="consent-summary" hidden></p><section id="results" aria-label="Pixel results"></section>
+<p>“Not detected” does not prove a pixel is absent. Browser checks observe five seconds before consent, and five more after a consent click when enabled. A fresh browser session is used for every scan. Tag Manager is a container, not a tracking pixel.</p></main>
 <script>
 const form = document.querySelector('form');
 const button = document.querySelector('button');
 const message = document.querySelector('#message');
 const results = document.querySelector('#results');
+const consentOption = document.querySelector('#accept-cookies');
+const consentSummary = document.querySelector('#consent-summary');
+document.querySelector('#mode').addEventListener('change', event => {
+  consentOption.disabled = event.target.value !== 'browser';
+  if (consentOption.disabled) consentOption.checked = false;
+});
+const phases = { before_consent: 'Before consent', after_consent_attempt: 'After consent attempt' };
 const labels = { passed: 'Passed', needs_attention: 'Needs attention', not_tested: 'Not tested' };
 function element(tag, text, className) {
   const node = document.createElement(tag);
@@ -26,7 +33,7 @@ function renderResult(result) {
   if (result.events.length) {
     card.append(element('strong', 'Observed events'));
     const events = document.createElement('ul'); events.className = 'events';
-    for (const event of result.events) events.append(element('li', `${event.name} · ${event.pixelId || 'ID unavailable'} · ${event.count} request${event.count === 1 ? '' : 's'}`));
+    for (const event of result.events) events.append(element('li', `${event.name} · ${event.pixelId || 'ID unavailable'} · ${event.count} request${event.count === 1 ? '' : 's'}${event.phase ? ' · ' + phases[event.phase] : ''}`));
     card.append(events);
   } else card.append(element('p', result.requestCount ? 'Tracking endpoint contacted; event name could not be read.' : 'No event requests observed.'));
   const checks = document.createElement('ul'); checks.className = 'checks';
@@ -45,13 +52,17 @@ function renderResult(result) {
   results.append(card);
 }
 form.addEventListener('submit', async event => {
-  event.preventDefault(); button.disabled = true; results.replaceChildren();
+  event.preventDefault(); button.disabled = true; results.replaceChildren(); consentSummary.hidden = true;
   message.textContent = 'Checking website…';
   try {
-    const response = await fetch('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: document.querySelector('#url').value, mode: document.querySelector('#mode').value }) });
+    const response = await fetch('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: document.querySelector('#url').value, mode: document.querySelector('#mode').value, acceptCookies: consentOption.checked }) });
     const data = await response.json();
     if (!response.ok) throw Error(data.error);
     message.textContent = `Checked ${data.url} (HTTP ${data.status ?? 'unknown'}). ${data.note}`;
+    if (data.consent?.requested) {
+      consentSummary.hidden = false;
+      consentSummary.textContent = 'Cookie consent: ' + data.consent.detail + ' Before/after labels reflect timing, not proof of consent compliance.';
+    }
     data.results.forEach(renderResult);
   } catch (error) { message.textContent = error.message; }
   finally { button.disabled = false; }

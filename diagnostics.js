@@ -79,8 +79,8 @@ export function addDiagnostics(results, html, observations, mode) {
       requestCount++;
       observation.ids.forEach(id => ids.add(id));
       for (const event of observation.events) {
-        const key = JSON.stringify([event.pixelId, event.name]);
-        const group = groups.get(key) || { ...event, count: 0 };
+        const key = JSON.stringify([event.pixelId, event.name, observation.phase]);
+        const group = groups.get(key) || { ...event, ...(observation.phase ? { phase: observation.phase } : {}), count: 0 };
         group.count++; groups.set(key, group);
       }
     }
@@ -92,7 +92,7 @@ export function addDiagnostics(results, html, observations, mode) {
       checks: [
         { label: container ? 'Container ID' : 'Pixel / tag ID', status: ids.size ? 'passed' : 'not_tested', detail: ids.size ? 'ID found; compare it with the client’s account.' : 'No readable ID found.' },
         { label: 'Event requests', status: container || mode !== 'browser' || !events.length ? 'not_tested' : 'passed', detail: container ? 'Tag Manager loads other tags; it is not an event pixel.' : mode !== 'browser' ? 'Use Browser visit to observe events.' : events.length ? 'Named event requests observed. Delivery is not verified.' : 'No named event observed during this visit; consent or delayed loading may affect results.' },
-        { label: 'Duplicate events', status: duplicates.length ? 'needs_attention' : duplicatesTested ? 'passed' : 'not_tested', detail: duplicates.length ? 'Repeated event names for the same ID during one visit. Review possible duplicates; retries and legitimate repeat actions can also cause this.' : duplicatesTested ? 'No repeated named events for the same known ID in this visit.' : 'Not enough event evidence to check duplicates.' },
+        { label: 'Duplicate events', status: duplicates.length ? 'needs_attention' : duplicatesTested ? 'passed' : 'not_tested', detail: duplicates.length ? 'Repeated event names for the same ID in one observation phase. Review possible duplicates; retries and legitimate repeat actions can also cause this.' : duplicatesTested ? 'No repeated named events for the same known ID within an observation phase.' : 'Not enough event evidence to check duplicates.' },
         { label: 'Account ownership, delivery & conversion journey', status: 'not_tested', detail: 'Confirm ownership and receipt in the provider’s Events Manager. Checkout, consent behavior, and conversion actions were not tested.' },
       ] };
   });

@@ -72,3 +72,15 @@ test('different pixel IDs and different event names are not duplicates', () => {
   assert.deepEqual(meta.duplicates, []);
   assert.equal(meta.checks[2].status, 'passed');
 });
+
+test('consent phases stay separate so before/after PageViews are not flagged as duplicates', () => {
+  const request = 'https://www.facebook.com/tr/?id=1&ev=PageView';
+  const observation = inspectRequest(request);
+  const observations = [{...observation,phase:'before_consent'},{...observation,phase:'after_consent_attempt'}];
+  let meta = analyze('', [request,request], 'browser', observations)[0];
+  assert.deepEqual(meta.events.map(event=>[event.phase,event.count]), [['before_consent',1],['after_consent_attempt',1]]);
+  assert.deepEqual(meta.duplicates, []);
+  meta = analyze('', [request,request,request], 'browser', [...observations,observations[1]])[0];
+  assert.equal(meta.duplicates[0].phase,'after_consent_attempt');
+  assert.equal(meta.duplicates[0].count,2);
+});

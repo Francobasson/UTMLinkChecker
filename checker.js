@@ -1,6 +1,7 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { inspectRequest, addDiagnostics } from './diagnostics.js';
+import { observeConsent } from './consent.js';
 
 const providers = [
   ['Meta', /connect\.facebook\.net|facebook\.com\/tr(?:[/?]|$)|\bfbq\s*\(/i, /facebook\.com\/tr(?:[/?]|$)/i],
@@ -70,7 +71,9 @@ export async function fetchSource(value) {
   throw new Error('Too many redirects.');
 }
 
-export async function scan(value, mode = 'source') {
+export async function scan(value, mode = 'source', { acceptCookies = false } = {}) {
+  if (typeof acceptCookies !== 'boolean') throw new Error('acceptCookies must be true or false.');
+  if (acceptCookies && mode !== 'browser') throw new Error('Cookie acceptance requires Browser visit mode.');
   const url = await validateURL(value);
   if (mode === 'source') {
     const page = await fetchSource(url);
@@ -91,15 +94,16 @@ export async function scan(value, mode = 'source') {
     const page = await context.newPage();
     const requests = [];
     const observations = [];
+    let phase = acceptCookies ? 'before_consent' : undefined;
     page.on('request', request => {
       if (requests.length >= 2000) return;
       requests.push(request.url());
       const observation = inspectRequest({ url: request.url(), postData: request.postData() || '' });
-      if (observation) observations.push(observation);
+      if (observation) observations.push({ ...observation, ...(phase ? { phase } : {}) });
     });
     const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
-    await page.waitForTimeout(5000);
-    return { url: page.url(), status: response?.status(), mode, results: analyze(await page.content(), requests, mode, observations),
-      note: 'Observed means a matching request was attempted, not that an event was accepted. No consent buttons were clicked.' };
+    const consent = await observeConsent(page, acceptCookies, next => { phase = next; });
+    return { url: page.url(), status: response?.status(), mode, consent, results: analyze(await page.content(), requests, mode, observations),
+      note: 'Observed means a matching request was attempted, not that an event was accepted. ' + consent.detail };
   } finally { await browser.close(); }
 }

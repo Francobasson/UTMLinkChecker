@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "test:browser": "node scripts/check-consent.mjs"
   },
   "repository": {
     "type": "git",
