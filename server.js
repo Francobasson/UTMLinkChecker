@@ -1,26 +1,12 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { scan } from './checker.js';
-import { timingSafeEqual } from 'node:crypto';
-
-const password = process.env.BASIC_AUTH_PASSWORD;
-if (process.env.NODE_ENV === 'production' && !password) throw new Error('Set BASIC_AUTH_PASSWORD before starting in production.');
-function authorized(header) {
-  if (!password) return true;
-  const expected = Buffer.from('Basic ' + Buffer.from(`admin:${password}`).toString('base64'));
-  const supplied = Buffer.from(header || '');
-  return supplied.length === expected.length && timingSafeEqual(supplied, expected);
-}
 
 const html = await readFile(new URL('./public/index.html', import.meta.url));
 let busy = false;
 http.createServer(async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.method === 'GET' && req.url === '/health') { res.writeHead(200); return res.end('ok'); }
-  if (!authorized(req.headers.authorization)) {
-    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Pixel Checker", charset="UTF-8"' });
-    return res.end('Authentication required.');
-  }
   if (req.method === 'GET' && req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return res.end(html);
   }

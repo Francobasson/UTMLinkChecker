@@ -4,6 +4,3 @@ services:
     runtime: docker
     plan: free
     healthCheckPath: /health
-    envVars:
-      - key: BASIC_AUTH_PASSWORD
-        generateValue: true
