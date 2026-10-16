@@ -1,0 +1,26 @@
+{
+  "name": "pixel-checker",
+  "version": "1.0.0",
+  "description": "Check website tracking pixels",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Francobasson/UTMLinkChecker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Francobasson/UTMLinkChecker/issues"
+  },
+  "homepage": "https://github.com/Francobasson/UTMLinkChecker#readme",
+  "dependencies": {
+    "playwright": "^1.64.1"
+  },
+  "private": true
+}

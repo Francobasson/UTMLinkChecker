@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: pixel-checker
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: BASIC_AUTH_PASSWORD
+        generateValue: true
