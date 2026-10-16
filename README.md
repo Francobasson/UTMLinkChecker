@@ -17,6 +17,14 @@ Page source mode fetches HTML without running JavaScript. Browser mode uses Play
 
 Results distinguish tags from attempted tracking requests. They cannot prove successful event delivery, attribution, or correct account configuration. Consent and delayed tags can cause missing detections. Google Tag Manager is a container. Request evidence omits query strings.
 
+## Campaign diagnostics
+
+Results show readable pixel/tag IDs, observed event names and request counts, and possible duplicate events grouped by provider, ID, and event name during a single visit. Repeated requests are warnings to investigate, not proof of double counting; retries and legitimate repeat actions can cause them. IDs from static configuration do not prove account ownership.
+
+Each check reports **Passed**, **Needs attention**, or **Not tested**. Passed applies only to the stated observation, not overall campaign readiness. Page source mode cannot test firing or duplicates. Unknown event formats and missing IDs remain untested. No events are triggered by the checker beyond the initial visit, so purchase/lead journeys and consent behavior require separate testing. Confirm event receipt and account ownership in the provider's Events Manager.
+
+Browser diagnostics parse supported query, form, and selected JSON payload formats. Raw bodies and query strings are not returned; only IDs and event names are retained for diagnostics. Unrecognized formats can leave names or IDs unavailable. Browser observations are capped at 2,000 requests per visit.
+
 URL and subrequest checks block private addresses but cannot prevent DNS rebinding without network enforcement. Browser scans execute third-party JavaScript. Only scan sites you are authorized to inspect.
 
 ## Deploy to Render

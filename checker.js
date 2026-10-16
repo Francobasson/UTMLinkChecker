@@ -1,5 +1,6 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
+import { inspectRequest, addDiagnostics } from './diagnostics.js';
 
 const providers = [
   ['Meta', /connect\.facebook\.net|facebook\.com\/tr(?:[/?]|$)|\bfbq\s*\(/i, /facebook\.com\/tr(?:[/?]|$)/i],
@@ -12,14 +13,16 @@ const providers = [
   ['Snapchat', /sc-static\.net\/scevent|tr\.snapchat\.com|\bsnaptr\s*\(/i, /tr\.snapchat\.com/i],
 ];
 
-export function analyze(html, requests = []) {
-  return providers.map(([name, source, event]) => {
-    const matches = [...new Set(requests.filter(url => source.test(url)))];
+export function analyze(html, requests = [], mode = 'source', observations = null) {
+  const urls = requests.map(request => typeof request === 'string' ? request : request.url);
+  const results = providers.map(([name, source, event]) => {
+    const matches = [...new Set(urls.filter(url => source.test(url)))];
     return { name, detected: source.test(html) || matches.length > 0,
       observed: matches.some(url => event.test(url)), requests: [...new Set(matches.map(url => {
         const parsed = new URL(url); return parsed.origin + parsed.pathname;
       }))] };
   });
+  return addDiagnostics(results, html, observations || requests.map(inspectRequest).filter(Boolean), mode);
 }
 
 function publicIP(address) {
@@ -87,10 +90,16 @@ export async function scan(value, mode = 'source') {
     });
     const page = await context.newPage();
     const requests = [];
-    page.on('request', request => requests.push(request.url()));
+    const observations = [];
+    page.on('request', request => {
+      if (requests.length >= 2000) return;
+      requests.push(request.url());
+      const observation = inspectRequest({ url: request.url(), postData: request.postData() || '' });
+      if (observation) observations.push(observation);
+    });
     const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 25000 });
     await page.waitForTimeout(5000);
-    return { url: page.url(), status: response?.status(), mode, results: analyze(await page.content(), requests),
+    return { url: page.url(), status: response?.status(), mode, results: analyze(await page.content(), requests, mode, observations),
       note: 'Observed means a matching request was attempted, not that an event was accepted. No consent buttons were clicked.' };
   } finally { await browser.close(); }
 }
